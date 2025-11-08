@@ -1,4 +1,4 @@
-package com.Inventory_Stock_Management.Inventory_Stock_Management_backend;
+package com.inventory_stock_management;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
