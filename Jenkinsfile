@@ -2,9 +2,8 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'eu-north-1'
-        ECR_REPO = 'inventory-backend'
-        ECR_URI = '485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend'
+        AWS_DEFAULT_REGION = 'eu-north-1'
+        REPOSITORY_URI = '485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend'
         IMAGE_TAG = "latest"
     }
 
@@ -15,25 +14,31 @@ pipeline {
             }
         }
 
-        stage('Build JAR') {
+        stage('Build with Maven') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                dir('backend') {
+                    sh 'mvn clean package -DskipTests=false'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh "docker build -t ${ECR_REPO}:${IMAGE_TAG} ."
+                dir('backend') {
+                    script {
+                        sh 'docker build -t inventory-backend .'
+                    }
                 }
             }
         }
 
-        stage('Login to ECR') {
+        stage('Login to AWS ECR') {
             steps {
-                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+                withAWS(credentials: 'aws-credentials', region: 'eu-north-1') {
                     script {
-                        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}"
+                        sh '''
+                        aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 485734076576.dkr.ecr.eu-north-1.amazonaws.com
+                        '''
                     }
                 }
             }
@@ -42,21 +47,27 @@ pipeline {
         stage('Tag & Push Docker Image') {
             steps {
                 script {
-                    sh """
-                        docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
-                        docker push ${ECR_URI}:${IMAGE_TAG}
-                    """
+                    sh '''
+                    docker tag inventory-backend:latest 485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend:latest
+                    docker push 485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend:latest
+                    '''
                 }
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh 'docker system prune -af'
             }
         }
     }
 
     post {
         success {
-            echo '✅ Docker image pushed successfully to ECR!'
+            echo '✅ Build & Push successful!'
         }
         failure {
-            echo '❌ Build or push failed.'
+            echo '❌ Build failed. Check logs.'
         }
     }
 }
