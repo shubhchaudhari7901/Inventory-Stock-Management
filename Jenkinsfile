@@ -32,17 +32,21 @@ pipeline {
             }
         }
 
-        stage('Login to AWS ECR') {
-            steps {
-                withAWS(credentials: 'aws-credentials', region: 'eu-north-1') {
-                    script {
-                        sh '''
-                        aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 485734076576.dkr.ecr.eu-north-1.amazonaws.com
-                        '''
-                    }
-                }
+stage('Login to ECR') {
+    steps {
+        withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+            script {
+                sh """
+                echo "🔍 Checking AWS identity inside Jenkins..."
+                aws sts get-caller-identity
+
+                echo "🔐 Logging in to ECR at ${ECR_URI}"
+                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}
+                """
             }
         }
+    }
+}
 
         stage('Tag & Push Docker Image') {
             steps {
