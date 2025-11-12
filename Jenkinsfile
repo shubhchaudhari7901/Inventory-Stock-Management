@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        AWS_DEFAULT_REGION = 'eu-north-1'
+        AWS_REGION     = 'eu-north-1'
         REPOSITORY_URI = '485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend'
-        IMAGE_TAG = "latest"
+        IMAGE_TAG      = 'latest'
     }
 
     stages {
@@ -32,29 +32,30 @@ pipeline {
             }
         }
 
-stage('Login to ECR') {
-    steps {
-        withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
-            script {
-                sh """
-                echo "🔍 Checking AWS identity inside Jenkins..."
-                aws sts get-caller-identity
+        stage('Login to ECR') {
+            steps {
+                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+                    script {
+                        sh """
+                            echo "🔍 Checking AWS identity inside Jenkins..."
+                            aws sts get-caller-identity
 
-                echo "🔐 Logging in to ECR at ${ECR_URI}"
-                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URI}
-                """
+                            echo "🔐 Logging in to ECR at ${REPOSITORY_URI}"
+                            aws ecr get-login-password --region ${AWS_REGION} | \
+                            docker login --username AWS --password-stdin ${REPOSITORY_URI}
+                        """
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Tag & Push Docker Image') {
             steps {
                 script {
-                    sh '''
-                    docker tag inventory-backend:latest 485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend:latest
-                    docker push 485734076576.dkr.ecr.eu-north-1.amazonaws.com/inventory-backend:latest
-                    '''
+                    sh """
+                        docker tag inventory-backend:${IMAGE_TAG} ${REPOSITORY_URI}:${IMAGE_TAG}
+                        docker push ${REPOSITORY_URI}:${IMAGE_TAG}
+                    """
                 }
             }
         }
